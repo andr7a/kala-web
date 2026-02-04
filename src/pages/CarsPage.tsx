@@ -388,7 +388,7 @@ export function CarsPage() {
               </div>
 
               {isScrolled && (
-                <div className="hidden md:flex items-center gap-2 flex-1 overflow-x-auto">
+                <div className="hidden md:flex flex-wrap gap-2 flex-1">
                   <select
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value)}
@@ -605,29 +605,31 @@ export function CarsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
-        <div className="bg-white rounded-xl shadow-md mb-6 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="relative flex-1">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search make, model, year, color..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
+        <div className="mb-6 rounded-2xl bg-gradient-to-r from-sky-200/70 via-amber-200/70 to-emerald-200/70 p-[1px] shadow-lg shadow-slate-900/10">
+          <div className="bg-white/85 backdrop-blur rounded-2xl p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search make, model, year, color..."
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/60 bg-white/80 shadow-inner shadow-slate-900/5 focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+                />
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-4 py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="px-4 py-3 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
-              >
-                Clear
-              </button>
-            )}
+            <p className="text-xs text-slate-500 mt-2">
+              Try “bmw”, “audi a8”, or even a typo — we’ll still find it.
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Try “bmw”, “audi a8”, or even a typo — we’ll still find it.
-          </p>
         </div>
 
         {!isScrolled && (
