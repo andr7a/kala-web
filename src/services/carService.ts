@@ -106,6 +106,7 @@ type CopartDetailItem = {
   keys_text?: string | null;
   title_brand?: string | null;
   title_type?: string | null;
+  interior_color?: string | null;
   sale_status_text?: string | null;
   vin_masked?: string | null;
   damage_highlights?: string[] | null;
@@ -264,6 +265,10 @@ function withLegacyRawAliases(item: CopartDetailItem, city: string | null, retai
   const transmission = asString(existingRaw.tsmn) ?? asString(item.transmission);
   const drive = asString(existingRaw.drv) ?? asString(item.drive);
   const exteriorColor = asString(existingRaw.ext_color) ?? asString(existingRaw.clr) ?? asString(item.color);
+  const interiorColor =
+    asString(existingRaw.int_color) ??
+    asString(existingRaw.interior_color) ??
+    asString(item.interior_color);
 
   return {
     ...existingRaw,
@@ -277,7 +282,7 @@ function withLegacyRawAliases(item: CopartDetailItem, city: string | null, retai
     locState: asString(existingRaw.locState) ?? asString(item.state),
     locCity: asString(existingRaw.locCity) ?? city,
     scn: asString(existingRaw.scn) ?? null,
-    int_color: asString(existingRaw.int_color) ?? null,
+    int_color: interiorColor ?? null,
     ext_color: exteriorColor,
     clr: exteriorColor,
     ord: odometerType,
