@@ -3,11 +3,69 @@ import { useNavigate } from 'react-router-dom';
 import { CarCard } from '../components/CarCard';
 import { useComparison } from '../context/ComparisonContext';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Sparkles, Search } from 'lucide-react';
 import { fetchAllCars, type Car } from '../services/carService';
+
+function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function tokenizeSearchText(value: string): string[] {
+  const normalized = normalizeSearchText(value);
+  return normalized ? normalized.split(/\s+/).filter(Boolean) : [];
+}
+
+function isSubsequence(needle: string, haystack: string): boolean {
+  let i = 0;
+  let j = 0;
+  while (i < needle.length && j < haystack.length) {
+    if (needle[i] === haystack[j]) i += 1;
+    j += 1;
+  }
+  return i === needle.length;
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const m = a.length;
+  const n = b.length;
+  const dp = new Array(n + 1);
+  for (let j = 0; j <= n; j += 1) dp[j] = j;
+  for (let i = 1; i <= m; i += 1) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j += 1) {
+      const temp = dp[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[j] = Math.min(
+        dp[j] + 1,
+        dp[j - 1] + 1,
+        prev + cost
+      );
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+function fuzzyTokenMatch(token: string, word: string): boolean {
+  if (!token || !word) return false;
+  if (word.includes(token) || token.includes(word)) return true;
+  if (isSubsequence(token, word)) return true;
+  const maxDistance = token.length <= 4 ? 1 : token.length <= 7 ? 2 : 3;
+  return levenshtein(token, word) <= maxDistance;
+}
 
 export function CarsPage() {
   const [cars, setCars] = useState<Car[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -177,7 +235,37 @@ export function CarsPage() {
 
   // Filter cars based on selected filters
   const filteredCars = useMemo(() => {
+    const normalizedQuery = normalizeSearchText(searchQuery);
+    const tokens = tokenizeSearchText(searchQuery);
     return cars.filter(car => {
+      if (normalizedQuery) {
+        const haystack = normalizeSearchText(
+          [
+            car.make,
+            car.model,
+            car.year,
+            car.lot_number,
+            car.color,
+            car.condition,
+            car.primary_damage,
+            car.secondary_damage,
+            car.location,
+            car.base_site,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        );
+
+        if (!haystack) return false;
+        if (!haystack.includes(normalizedQuery)) {
+          const words = haystack.split(/\s+/);
+          const matches = tokens.every((token) =>
+            words.some((word) => fuzzyTokenMatch(token, word))
+          );
+          if (!matches) return false;
+        }
+      }
+
       if (selectedCompany && car.base_site !== selectedCompany) return false;
       if (selectedBrand && car.make !== selectedBrand) return false;
       if (selectedModel && car.model !== selectedModel) return false;
@@ -207,6 +295,7 @@ export function CarsPage() {
     });
   }, [
     cars,
+    searchQuery,
     selectedCompany,
     selectedBrand,
     selectedModel,
@@ -223,6 +312,7 @@ export function CarsPage() {
 
   // Clear all filters
   const clearFilters = () => {
+    setSearchQuery('');
     setSelectedCompany('');
     setSelectedBrand('');
     setSelectedModel('');
@@ -258,6 +348,7 @@ export function CarsPage() {
   }, [buyNowAvailabilityOptions, selectedBuyNowAvailability]);
 
   const hasActiveFilters =
+    searchQuery ||
     selectedCompany ||
     selectedBrand ||
     selectedModel ||
@@ -514,6 +605,30 @@ export function CarsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
+        <div className="bg-white rounded-xl shadow-md mb-6 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search make, model, year, color..."
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-3 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Try “bmw”, “audi a8”, or even a typo — we’ll still find it.
+          </p>
+        </div>
 
         {!isScrolled && (
           <div className="bg-white rounded-xl shadow-md mb-8 transition-all duration-300">
