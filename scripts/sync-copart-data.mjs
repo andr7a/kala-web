@@ -27,7 +27,16 @@ function parseJsonLines(contents) {
 
 function main() {
   if (!fs.existsSync(sourcePath)) {
-    throw new Error(`Source file not found: ${sourcePath}`);
+    if (fs.existsSync(targetPath)) {
+      console.warn(
+        `Source file not found: ${sourcePath}. Using existing data file: ${targetPath}`
+      );
+      return;
+    }
+
+    throw new Error(
+      `Source file not found: ${sourcePath}, and fallback file missing: ${targetPath}`
+    );
   }
 
   const sourceContents = fs.readFileSync(sourcePath, 'utf8');
