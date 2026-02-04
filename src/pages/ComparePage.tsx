@@ -198,7 +198,7 @@ export function ComparePage() {
 
     return (
       <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-        <div className="relative h-72 bg-gray-200">
+        <div className="relative h-56 sm:h-72 bg-gray-200">
           <img
             src={images[0]}
             alt={`${car.make} ${car.model}`}
@@ -213,19 +213,19 @@ export function ComparePage() {
           </button>
           <button
             onClick={() => setGalleryOpen({ car, index: 0 })}
-            className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+            className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-xs sm:text-sm"
           >
             <ImageIcon size={18} />
             View Media ({mediaItems.length})
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="mb-6">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">
               {car.make}
             </h2>
-            <p className="text-3xl font-bold text-gray-900">{car.model} {car.year}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{car.model} {car.year}</p>
           </div>
 
           <div className="space-y-4">
@@ -235,21 +235,21 @@ export function ComparePage() {
                 <h3 className="font-semibold text-gray-900">Pricing</h3>
               </div>
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Estimated Value:</span>
                   <span className="font-semibold text-gray-900">
                     {fmtMoney(car.estimated_retail_value ?? raw.lotPlugAcv)}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Buy Now Price:</span>
                   <span className="font-semibold text-green-600">{fmtMoney(car.buy_it_now_price ?? buyNowRaw)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Currency:</span>
                   <span className="font-semibold text-gray-900">{fmtCurrency(currency)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Replacement Cost:</span>
                   <span className="font-semibold text-gray-900">{fmtMoney(replacementCost)}</span>
                 </div>
@@ -259,19 +259,19 @@ export function ComparePage() {
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Country:</span>
                   <span className="font-medium text-gray-900">{country || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">City:</span>
                   <span className="font-medium text-gray-900">{city || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">State:</span>
                   <span className="font-medium text-gray-900">{state || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Seller:</span>
                   <span className="font-medium text-gray-900">{seller || 'Not available'}</span>
                 </div>
@@ -284,11 +284,11 @@ export function ComparePage() {
                 <h3 className="font-semibold text-gray-900">Engine Specifications</h3>
               </div>
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Engine Type:</span>
                   <span className="font-semibold text-gray-900">{engine?.engineType || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Cylinders:</span>
                   <span className="font-semibold text-gray-900">{car.cylinders || engine?.cylinders || 'Not available'}</span>
                 </div>
@@ -298,15 +298,15 @@ export function ComparePage() {
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-900 mb-3">Vehicle Details</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Interior Color:</span>
                   <span className="font-medium text-gray-900">{interiorColor || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Exterior Color:</span>
                   <span className="font-medium text-gray-900">{exteriorColor || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Odometer:</span>
                   <span className="font-medium text-gray-900">
                     {car.odometer_formatted ??
@@ -315,23 +315,23 @@ export function ComparePage() {
                         : 'Not available')}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Odometer Type:</span>
                   <span className="font-medium text-gray-900">{odometerType || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Keys:</span>
                   <span className="font-medium text-gray-900">{fmtYesNo(keys)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Transmission:</span>
                   <span className="font-medium text-gray-900">{transmission || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Drive:</span>
                   <span className="font-medium text-gray-900">{drive || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Fuel:</span>
                   <span className="font-medium text-gray-900">{fmtText(fuelType)}</span>
                 </div>
@@ -342,23 +342,23 @@ export function ComparePage() {
               <h3 className="font-semibold text-gray-900 mb-3">Condition & Damage</h3>
               <div className="space-y-2 text-sm">
                 {car.condition && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-gray-600">Condition:</span>
                     <span className="font-medium text-gray-900">{car.condition}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Primary Damage:</span>
                   <span className="font-medium text-red-700">{car.primary_damage || 'Not available'}</span>
                 </div>
                 {car.secondary_damage && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-gray-600">Secondary Damage:</span>
                     <span className="font-medium text-red-700">{car.secondary_damage}</span>
                   </div>
                 )}
                 <div className="pt-2 border-t border-red-200">
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-gray-600">CR Damage:</span>
                     <span className="font-medium text-red-700">{crDamages && crDamages.length ? `${crDamages.length} items` : 'Not available'}</span>
                   </div>
@@ -390,47 +390,47 @@ export function ComparePage() {
                 <h3 className="font-semibold text-gray-900">Auction Info</h3>
               </div>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Lot Number:</span>
                   <span className="font-medium text-gray-900">{car.lot_number || 'Not available'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Company:</span>
                   <span className="font-medium text-gray-900">{car.base_site === 'iaai' ? 'IAAI' : 'Copart'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Sale Date:</span>
                   <span className="font-medium text-gray-900">{formatDate(car.auction_date)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">VIN:</span>
                   <span className="font-medium text-gray-900">{fmtText(vin)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Title Type:</span>
                   <span className="font-medium text-gray-900">{fmtText(titleType)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Title Brand:</span>
                   <span className="font-medium text-gray-900">{fmtText(titleBrand)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Sale Status:</span>
                   <span className="font-medium text-gray-900">{fmtText(saleStatus)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Listing Status:</span>
                   <span className="font-medium text-gray-900">{fmtText(listingStatus)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">Yard:</span>
                   <span className="font-medium text-gray-900">{fmtText(yardName)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">State Code:</span>
                   <span className="font-medium text-gray-900">{fmtText(stateCode)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-600">ZIP:</span>
                   <span className="font-medium text-gray-900">{fmtText(zip)}</span>
                 </div>
@@ -444,7 +444,7 @@ export function ComparePage() {
                   const acs = fmtPercent(gradeAcs, 100);
                   return (
                     <div>
-                      <div className="flex justify-between">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-gray-600">ACS:</span>
                         <span className="font-medium text-gray-900">{acs ? acs.n : 'Not available'}</span>
                       </div>
@@ -460,7 +460,7 @@ export function ComparePage() {
                   const arg = fmtPercent(gradeArg, 5);
                   return (
                     <div>
-                      <div className="flex justify-between">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-gray-600">ARG:</span>
                         <span className="font-medium text-gray-900">{arg ? arg.n : 'Not available'}</span>
                       </div>
@@ -502,16 +502,18 @@ export function ComparePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="sticky top-0 z-50 bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors self-start"
           >
             <ArrowLeft size={20} />
             Back to Cars
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Car Comparison ({selectedCars.length})</h1>
-          <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 text-left lg:text-center">
+            Car Comparison ({selectedCars.length})
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
             {selectedCars.length === 2 && (
               <button
                 onClick={swapCars}
@@ -529,7 +531,7 @@ export function ComparePage() {
               Clear
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className={`${isGuest ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'} rounded-lg font-medium px-4 py-2 text-sm flex items-center gap-2`}>
                 <User size={16} />
                 {isGuest ? 'Guest' : user?.email?.split('@')[0]}
@@ -592,20 +594,20 @@ function MediaGallery({ car, initialIndex, onClose }: MediaGalleryProps) {
         <X size={24} />
       </button>
 
-      <div className="relative w-full h-full flex items-center justify-center px-16">
+      <div className="relative w-full h-full flex items-center justify-center px-4 sm:px-16">
         {mediaItems.length > 1 && (
           <>
             <button
               onClick={goToPrevious}
-              className="absolute left-4 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full transition-all"
+              className="absolute left-2 sm:left-4 bg-white/10 hover:bg-white/20 text-white p-2 sm:p-3 rounded-full transition-all"
             >
-              <ChevronLeft size={32} />
+              <ChevronLeft size={24} className="sm:w-8 sm:h-8" />
             </button>
             <button
               onClick={goToNext}
-              className="absolute right-4 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full transition-all"
+              className="absolute right-2 sm:right-4 bg-white/10 hover:bg-white/20 text-white p-2 sm:p-3 rounded-full transition-all"
             >
-              <ChevronRight size={32} />
+              <ChevronRight size={24} className="sm:w-8 sm:h-8" />
             </button>
           </>
         )}

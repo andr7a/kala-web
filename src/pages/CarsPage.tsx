@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CarCard } from '../components/CarCard';
 import { useComparison } from '../context/ComparisonContext';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Crown, Sparkles } from 'lucide-react';
+import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Sparkles } from 'lucide-react';
 import { fetchAllCars, type Car } from '../services/carService';
 
 export function CarsPage() {
@@ -24,10 +24,9 @@ export function CarsPage() {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const { selectedCars, toggleCar, clearComparison } = useComparison();
-  const { user, signOut, profile } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const isGuest = !user;
-  const isPremium = profile?.subscription_status === 'active' && profile?.subscription_tier === 'premium';
 
   const handleSignOut = async () => {
     if (isGuest) {
@@ -277,8 +276,8 @@ export function CarsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className={`sticky top-0 z-50 bg-white shadow-md transition-all duration-300 ${isScrolled ? 'shadow-lg' : ''}`}>
         <div className={`max-w-7xl mx-auto px-4 transition-all duration-300 ${isScrolled ? 'py-3' : 'py-6'}`}>
-          <div className="flex items-center justify-between gap-4">
-            <div className={`flex items-center gap-6 ${isScrolled ? 'flex-1' : ''}`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className={`flex flex-col gap-4 sm:flex-row sm:items-center ${isScrolled ? 'lg:flex-1' : ''}`}>
               <div className="flex-shrink-0">
                 <h1 className={`font-extrabold tracking-tight transition-all duration-300 ${isScrolled ? 'text-2xl' : 'text-5xl'}`}
                     style={{
@@ -298,7 +297,7 @@ export function CarsPage() {
               </div>
 
               {isScrolled && (
-                <div className="flex items-center gap-2 flex-1 overflow-x-auto">
+                <div className="hidden md:flex items-center gap-2 flex-1 overflow-x-auto">
                   <select
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value)}
@@ -468,14 +467,14 @@ export function CarsPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {!isGuest && selectedCars.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
+              {selectedCars.length > 0 && (
                 <div className={`bg-blue-100 text-blue-800 rounded-lg font-semibold transition-all duration-300 flex-shrink-0 ${isScrolled ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'}`}>
                   {selectedCars.length} car{selectedCars.length !== 1 ? 's' : ''} selected
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => navigate('/about')}
                   className={`bg-slate-100 text-slate-800 hover:bg-slate-200 rounded-lg font-medium transition-all duration-300 flex-shrink-0 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
@@ -490,30 +489,13 @@ export function CarsPage() {
                   <Sparkles size={isScrolled ? 14 : 16} />
                   AI Finder
                 </button>
-                {!isGuest && !isPremium && (
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className={`bg-gradient-to-r from-amber-400 to-amber-500 text-white hover:from-amber-500 hover:to-amber-600 rounded-lg font-semibold transition-all duration-300 flex-shrink-0 flex items-center gap-1 shadow-md ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
-                  >
-                    <Crown size={isScrolled ? 14 : 16} />
-                    Go Premium
-                  </button>
-                )}
-                {!isGuest && isPremium && (
-                  <div className={`bg-gradient-to-r from-amber-400 to-amber-500 text-white rounded-lg font-semibold transition-all duration-300 flex-shrink-0 flex items-center gap-1 shadow-md ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}>
-                    <Crown size={isScrolled ? 14 : 16} />
-                    Premium
-                  </div>
-                )}
-                {!isGuest && (
-                  <button
-                    onClick={() => navigate('/favorites')}
-                    className={`bg-pink-100 text-pink-800 hover:bg-pink-200 rounded-lg font-medium transition-all duration-300 flex-shrink-0 flex items-center gap-2 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
-                  >
-                    <Heart size={isScrolled ? 14 : 16} />
-                    Favorites
-                  </button>
-                )}
+                <button
+                  onClick={() => navigate('/favorites')}
+                  className={`bg-pink-100 text-pink-800 hover:bg-pink-200 rounded-lg font-medium transition-all duration-300 flex-shrink-0 flex items-center gap-2 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                >
+                  <Heart size={isScrolled ? 14 : 16} />
+                  Favorites
+                </button>
                 <div className={`${isGuest ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'} rounded-lg font-medium transition-all duration-300 flex-shrink-0 flex items-center gap-2 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}>
                   <User size={isScrolled ? 14 : 16} />
                   {isGuest ? 'Guest' : user?.email?.split('@')[0]}
@@ -531,87 +513,43 @@ export function CarsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {!isGuest && !isPremium && (
-          <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 rounded-xl shadow-lg mb-8 overflow-hidden">
-            <div className="relative px-8 py-6">
-              <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-20">
-                <Crown size={120} />
-              </div>
-              <div className="relative z-10 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="text-yellow-300" size={24} />
-                    <h3 className="text-2xl font-bold text-white">Unlock Premium Features</h3>
-                  </div>
-                  <p className="text-blue-100 text-lg mb-4 max-w-2xl">
-                    Get full access to advanced filters, unlimited comparisons, and save your favorite cars.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <button
-                      onClick={() => navigate('/pricing')}
-                      className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                    >
-                      <Crown size={20} />
-                      Upgrade to Premium
-                    </button>
-                    <span className="text-white font-medium">Starting at $9.99/month</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
 
         {!isScrolled && (
           <div className="bg-white rounded-xl shadow-md mb-8 transition-all duration-300">
-            {isGuest ? (
-              <div className="p-6 text-center">
-                <Filter size={32} className="text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Filters Unavailable</h3>
-                <p className="text-gray-600 mb-4">Sign up or log in to access advanced filters and search options</p>
-                <button
-                  onClick={() => navigate('/auth')}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Sign Up / Log In
-                </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Filter size={20} className="text-gray-700" />
+                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+                {hasActiveFilters && (
+                  <span className="text-sm text-gray-500">
+                    ({filteredCars.length} of {cars.length} cars)
+                  </span>
+                )}
               </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Filter size={20} className="text-gray-700" />
-                    <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-                    {hasActiveFilters && (
-                      <span className="text-sm text-gray-500">
-                        ({filteredCars.length} of {cars.length} cars)
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {hasActiveFilters && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          clearFilters();
-                        }}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline"
-                      >
-                        Clear All
-                      </button>
-                    )}
-                    <ChevronDown
-                      size={20}
-                      className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`}
-                    />
-                  </div>
-                </button>
+              <div className="flex items-center gap-3">
+                {hasActiveFilters && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearFilters();
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <ChevronDown
+                  size={20}
+                  className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                />
+              </div>
+            </button>
 
-                {showFilters && (
+            {showFilters && (
               <div className="px-6 pb-6 border-t border-gray-200 pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
@@ -832,8 +770,6 @@ export function CarsPage() {
               </div>
             </div>
               </div>
-                )}
-              </>
             )}
           </div>
         )}
@@ -865,8 +801,8 @@ export function CarsPage() {
           )}
         </div>
 
-        {canCompare && !isGuest && (
-          <div className="fixed bottom-8 right-8">
+        {canCompare && (
+          <div className="hidden md:block fixed bottom-8 right-8">
             <button
               onClick={() => navigate('/compare')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 font-semibold text-lg"
@@ -877,8 +813,8 @@ export function CarsPage() {
           </div>
         )}
 
-        {canCompare && !isGuest && (
-          <div className="fixed bottom-8 left-8 bg-white rounded-lg shadow-lg p-4 max-w-xs">
+        {canCompare && (
+          <div className="hidden md:block fixed bottom-8 left-8 bg-white rounded-lg shadow-lg p-4 max-w-xs">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-semibold text-gray-700">Ready to Compare:</p>
               <button
@@ -903,6 +839,31 @@ export function CarsPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {canCompare && (
+          <div className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-700">
+                {selectedCars.length} selected
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearComparison}
+                  className="px-3 py-2 rounded-lg bg-red-100 text-red-700 text-sm font-medium"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => navigate('/compare')}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold flex items-center gap-1"
+                >
+                  Compare
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             </div>
           </div>
         )}
