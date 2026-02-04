@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Calendar, Tag, DollarSign, ChevronLeft, ChevronRight, Image as ImageIcon, Video, Gauge, ExternalLink, X, User, LogOut } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft, Tag, ChevronLeft, ChevronRight, ChevronDown, Image as ImageIcon, Video, ExternalLink, X, User, LogOut } from 'lucide-react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { fetchCarByLotNumber, type Car } from '../services/carService';
 
 type MediaItem = { type: 'image' | 'video'; url: string };
@@ -221,6 +221,61 @@ export function CarDetailPage() {
     return { n, pct };
   };
 
+  const locationShort =
+    [city, state].filter(Boolean).join(', ') || country || 'Not available';
+
+  const QuickItem = ({
+    label,
+    value,
+    tone = 'neutral',
+  }: {
+    label: string;
+    value: ReactNode;
+    tone?: 'neutral' | 'accent' | 'success' | 'danger';
+  }) => {
+    const toneClass =
+      tone === 'success'
+        ? 'bg-emerald-50'
+        : tone === 'accent'
+        ? 'bg-sky-50'
+        : tone === 'danger'
+        ? 'bg-rose-50'
+        : 'bg-slate-50';
+    return (
+      <div className={`rounded-lg p-3 ${toneClass}`}>
+        <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="text-lg font-semibold text-slate-900">{value}</p>
+      </div>
+    );
+  };
+
+  const InfoRow = ({
+    label,
+    value,
+    tone = 'neutral',
+  }: {
+    label: string;
+    value: ReactNode;
+    tone?: 'neutral' | 'accent' | 'success' | 'danger';
+  }) => {
+    const toneClass =
+      tone === 'success'
+        ? 'bg-emerald-50'
+        : tone === 'accent'
+        ? 'bg-sky-50'
+        : tone === 'danger'
+        ? 'bg-rose-50'
+        : 'bg-slate-50';
+    return (
+      <div
+        className={`flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-lg px-3 py-2 ${toneClass}`}
+      >
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-900">{value}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="sticky top-0 z-50 bg-white shadow-md">
@@ -335,279 +390,208 @@ export function CarDetailPage() {
           </div>
 
           <div className="lg:pl-2">
-            <div className="columns-1 md:columns-2 gap-6 [column-fill:_balance]">
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign size={20} className="text-blue-600" />
-                <h3 className="text-xl font-semibold text-gray-900">Pricing</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-blue-50 rounded-lg">
-                  <span className="text-gray-600 font-medium">Estimated Value:</span>
-                  <span className="text-xl font-bold text-gray-900">
-                    {fmtMoney(car.estimated_retail_value ?? raw.lotPlugAcv)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-green-50 rounded-lg">
-                  <span className="text-gray-600 font-medium">Buy Now Price:</span>
-                  <span className="text-xl font-bold text-green-600">
-                    {fmtMoney(car.buy_it_now_price ?? buyNowRaw)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-medium">Currency:</span>
-                  <span className="text-xl font-bold text-gray-900">{fmtCurrency(currency)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-medium">Replacement Cost:</span>
-                  <span className="text-xl font-bold text-gray-900">{fmtMoney(replacementCost)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Location</h3>
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Country:</span>
-                  <span className="font-semibold text-gray-900">{country || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">City:</span>
-                  <span className="font-semibold text-gray-900">{city || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">State:</span>
-                  <span className="font-semibold text-gray-900">{state || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Seller:</span>
-                  <span className="font-semibold text-gray-900">{seller || 'Not available'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <div className="flex items-center gap-2 mb-4">
-                <Gauge size={20} className="text-green-600" />
-                <h3 className="text-xl font-semibold text-gray-900">Engine Specifications</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Engine Type:</span>
-                  <span className="font-semibold text-gray-900">{engine?.engineType || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Cylinders:</span>
-                  <span className="font-semibold text-gray-900">{car.cylinders || engine?.cylinders || 'Not available'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Vehicle Details</h3>
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Interior Color:</span>
-                  <span className="font-semibold text-gray-900">{interiorColor || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Exterior Color:</span>
-                  <span className="font-semibold text-gray-900">{exteriorColor || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Odometer:</span>
-                  <span className="font-semibold text-gray-900">
-                    {car.odometer_formatted ??
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Facts</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <QuickItem
+                    label="Buy Now Price"
+                    value={fmtMoney(car.buy_it_now_price ?? buyNowRaw)}
+                    tone="success"
+                  />
+                  <QuickItem
+                    label="Estimated Value"
+                    value={fmtMoney(car.estimated_retail_value ?? raw.lotPlugAcv)}
+                    tone="accent"
+                  />
+                  <QuickItem
+                    label="Odometer"
+                    value={
+                      car.odometer_formatted ??
                       (car.odometer !== null && car.odometer !== undefined
                         ? `${Math.round(car.odometer * 1.60934).toLocaleString()} km`
-                        : 'Not available')}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Odometer Type:</span>
-                  <span className="font-semibold text-gray-900">{odometerType || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Keys:</span>
-                  <span className="font-semibold text-gray-900">{fmtYesNo(keys)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Transmission:</span>
-                  <span className="font-semibold text-gray-900">{transmission || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Drive:</span>
-                  <span className="font-semibold text-gray-900">{drive || 'Not available'}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Fuel:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(fuelType)}</span>
+                        : 'Not available')
+                    }
+                  />
+                  <QuickItem label="Condition" value={fmtText(car.condition)} />
+                  <QuickItem label="Primary Damage" value={fmtText(car.primary_damage)} tone="danger" />
+                  <QuickItem label="Location" value={locationShort} />
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Condition & Damage</h3>
-              <div className="space-y-3">
-                {car.condition && (
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-600">Condition:</span>
-                    <span className="font-semibold text-gray-900">{car.condition}</span>
+              {car.highlights && car.highlights.length > 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Tag size={18} className="text-yellow-600" />
+                    <h3 className="text-lg font-semibold text-slate-900">Highlights</h3>
                   </div>
-                )}
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-red-50 rounded-lg">
-                  <span className="text-gray-600">Primary Damage:</span>
-                  <span className="font-semibold text-red-700">{car.primary_damage || 'Not available'}</span>
-                </div>
-                {car.secondary_damage && (
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-red-50 rounded-lg">
-                    <span className="text-gray-600">Secondary Damage:</span>
-                    <span className="font-semibold text-red-700">{car.secondary_damage}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {car.highlights.map((highlight, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800"
+                      >
+                        {highlight}
+                      </span>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                <div className="p-3 bg-red-50 rounded-lg">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-gray-600">CR Damage:</span>
-                    <span className="font-semibold text-red-700">{crDamages && crDamages.length ? `${crDamages.length} items` : 'Not available'}</span>
-                  </div>
-                  {crDamages && crDamages.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-sm text-red-800">
-                      {crDamages.slice(0, 12).map((d: any, idx: number) => {
-                        const item = (d.aasc_item_description ?? 'Item').toString();
-                        const dmg = (d.aasc_damage_description ?? '').toString();
-                        const sev = (d.aasc_severity_description ?? '').toString();
-                        const area = (d.damage_area ?? '').toString();
-                        const line = [item, dmg && `— ${dmg}`, sev && `(${sev})`].filter(Boolean).join(' ');
-                        return (
-                          <li key={idx} className="leading-snug">
-                            <span className="font-medium">{line}</span>
-                            {area ? <span className="text-red-700">{' '}[{area}]</span> : null}
-                          </li>
-                        );
-                      })}
-                      {crDamages.length > 12 && (
-                        <li className="text-red-700">+ {crDamages.length - 12} more</li>
-                      )}
-                    </ul>
-                  )}
+              <details open className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Pricing & Costs</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-2">
+                  <InfoRow label="Estimated Value" value={fmtMoney(car.estimated_retail_value ?? raw.lotPlugAcv)} />
+                  <InfoRow label="Buy Now Price" value={fmtMoney(car.buy_it_now_price ?? buyNowRaw)} tone="success" />
+                  <InfoRow label="Currency" value={fmtCurrency(currency)} />
+                  <InfoRow label="Replacement Cost" value={fmtMoney(replacementCost)} />
                 </div>
-              </div>
-            </div>
+              </details>
 
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar size={20} className="text-gray-600" />
-                <h3 className="text-xl font-semibold text-gray-900">Auction Info</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Lot Number:</span>
-                  <span className="font-semibold text-gray-900">{car.lot_number || 'Not available'}</span>
+              <details open className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Vehicle Specs</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-2">
+                  <InfoRow label="Interior Color" value={interiorColor || 'Not available'} />
+                  <InfoRow label="Exterior Color" value={exteriorColor || 'Not available'} />
+                  <InfoRow
+                    label="Odometer"
+                    value={
+                      car.odometer_formatted ??
+                      (car.odometer !== null && car.odometer !== undefined
+                        ? `${Math.round(car.odometer * 1.60934).toLocaleString()} km`
+                        : 'Not available')
+                    }
+                  />
+                  <InfoRow label="Odometer Type" value={odometerType || 'Not available'} />
+                  <InfoRow label="Transmission" value={transmission || 'Not available'} />
+                  <InfoRow label="Drive" value={drive || 'Not available'} />
+                  <InfoRow label="Fuel" value={fmtText(fuelType)} />
+                  <InfoRow label="Engine Type" value={engine?.engineType || 'Not available'} />
+                  <InfoRow label="Cylinders" value={car.cylinders || engine?.cylinders || 'Not available'} />
+                  <InfoRow label="Keys" value={fmtYesNo(keys)} />
                 </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Company:</span>
-                  <span className="font-semibold text-gray-900">
-                    {car.base_site === 'iaai' ? 'IAAI' : 'Copart'}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Sale Date:</span>
-                  <span className="font-semibold text-gray-900">{formatDate(car.auction_date)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">VIN:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(vin)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Title Type:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(titleType)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Title Brand:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(titleBrand)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Sale Status:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(saleStatus)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Listing Status:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(listingStatus)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">Yard:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(yardName)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">State Code:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(stateCode)}</span>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600">ZIP:</span>
-                  <span className="font-semibold text-gray-900">{fmtText(zip)}</span>
-                </div>
-              </div>
-            </div>
+              </details>
 
-            <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Grade</h3>
-              <div className="space-y-3">
-                {(() => {
-                  const acs = fmtPercent(gradeAcs, 100);
-                  return (
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-gray-600">ACS:</span>
-                        <span className="font-semibold text-gray-900">{acs ? acs.n : 'Not available'}</span>
-                      </div>
-                      {acs && (
-                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-600" style={{ width: `${acs.pct}%` }} />
-                        </div>
-                      )}
+              <details className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Location & Seller</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-2">
+                  <InfoRow label="Country" value={country || 'Not available'} />
+                  <InfoRow label="City" value={city || 'Not available'} />
+                  <InfoRow label="State" value={state || 'Not available'} />
+                  <InfoRow label="Seller" value={seller || 'Not available'} />
+                </div>
+              </details>
+
+              <details className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Condition & Damage</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-2">
+                  <InfoRow label="Condition" value={fmtText(car.condition)} />
+                  <InfoRow label="Primary Damage" value={fmtText(car.primary_damage)} tone="danger" />
+                  <InfoRow label="Secondary Damage" value={fmtText(car.secondary_damage)} tone="danger" />
+                  <div className="rounded-lg bg-rose-50 p-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-sm text-slate-500">CR Damage</span>
+                      <span className="font-semibold text-rose-700">
+                        {crDamages && crDamages.length ? `${crDamages.length} items` : 'Not available'}
+                      </span>
                     </div>
-                  );
-                })()}
-                {(() => {
-                  const arg = fmtPercent(gradeArg, 5);
-                  return (
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-gray-600">ARG:</span>
-                        <span className="font-semibold text-gray-900">{arg ? arg.n : 'Not available'}</span>
-                      </div>
-                      {arg && (
-                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-600" style={{ width: `${arg.pct}%` }} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
+                    {crDamages && crDamages.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-sm text-rose-800">
+                        {crDamages.slice(0, 12).map((d: any, idx: number) => {
+                          const item = (d.aasc_item_description ?? 'Item').toString();
+                          const dmg = (d.aasc_damage_description ?? '').toString();
+                          const sev = (d.aasc_severity_description ?? '').toString();
+                          const area = (d.damage_area ?? '').toString();
+                          const line = [item, dmg && `— ${dmg}`, sev && `(${sev})`].filter(Boolean).join(' ');
+                          return (
+                            <li key={idx} className="leading-snug">
+                              <span className="font-medium">{line}</span>
+                              {area ? <span className="text-rose-700">{' '}[{area}]</span> : null}
+                            </li>
+                          );
+                        })}
+                        {crDamages.length > 12 && (
+                          <li className="text-rose-700">+ {crDamages.length - 12} more</li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </details>
 
-            {car.highlights && car.highlights.length > 0 && (
-              <div className="bg-white rounded-xl shadow-xl p-6 mb-6 break-inside-avoid">
-                <div className="flex items-center gap-2 mb-4">
-                  <Tag size={20} className="text-yellow-600" />
-                  <h3 className="text-xl font-semibold text-gray-900">Highlights</h3>
+              <details className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Auction & Title</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-2">
+                  <InfoRow label="Lot Number" value={car.lot_number || 'Not available'} />
+                  <InfoRow label="Company" value={car.base_site === 'iaai' ? 'IAAI' : 'Copart'} />
+                  <InfoRow label="Sale Date" value={formatDate(car.auction_date)} />
+                  <InfoRow label="VIN" value={fmtText(vin)} />
+                  <InfoRow label="Title Type" value={fmtText(titleType)} />
+                  <InfoRow label="Title Brand" value={fmtText(titleBrand)} />
+                  <InfoRow label="Sale Status" value={fmtText(saleStatus)} />
+                  <InfoRow label="Listing Status" value={fmtText(listingStatus)} />
+                  <InfoRow label="Yard" value={fmtText(yardName)} />
+                  <InfoRow label="State Code" value={fmtText(stateCode)} />
+                  <InfoRow label="ZIP" value={fmtText(zip)} />
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {car.highlights.map((highlight, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800"
-                    >
-                      {highlight}
-                    </span>
-                  ))}
+              </details>
+
+              <details className="group bg-white rounded-xl shadow-lg">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none text-slate-900 font-semibold">
+                  <span>Grade</span>
+                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t px-5 pb-5 pt-4 space-y-3">
+                  {(() => {
+                    const acs = fmtPercent(gradeAcs, 100);
+                    return (
+                      <div className="rounded-lg bg-slate-50 p-3">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="text-sm text-slate-500">ACS</span>
+                          <span className="font-semibold text-slate-900">{acs ? acs.n : 'Not available'}</span>
+                        </div>
+                        {acs && (
+                          <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-600" style={{ width: `${acs.pct}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {(() => {
+                    const arg = fmtPercent(gradeArg, 5);
+                    return (
+                      <div className="rounded-lg bg-slate-50 p-3">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="text-sm text-slate-500">ARG</span>
+                          <span className="font-semibold text-slate-900">{arg ? arg.n : 'Not available'}</span>
+                        </div>
+                        {arg && (
+                          <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-600" style={{ width: `${arg.pct}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
-              </div>
-            )}
-          </div>
+              </details>
+            </div>
           </div>
         </div>
       </div>
