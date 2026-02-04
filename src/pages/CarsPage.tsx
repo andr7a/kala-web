@@ -605,30 +605,41 @@ export function CarsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
-        <div className="mb-6 rounded-2xl bg-gradient-to-r from-sky-200/70 via-amber-200/70 to-emerald-200/70 p-[1px] shadow-lg shadow-slate-900/10">
-          <div className="bg-white/85 backdrop-blur rounded-2xl p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search make, model, year, color..."
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/60 bg-white/80 shadow-inner shadow-slate-900/5 focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
-                />
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-sky-200/70 via-amber-200/70 to-emerald-200/70 p-[1px] shadow-lg shadow-slate-900/10">
+          <div className="rounded-3xl bg-white/95 px-4 py-5 sm:px-6 sm:py-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <span className="inline-flex h-2 w-2 rounded-full bg-sky-500" />
+                Smart Search
               </div>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="px-4 py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
-                >
-                  Clear
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg bg-sky-100 p-1.5 text-sky-700">
+                    <Search size={16} />
+                  </span>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search make, model, year, color..."
+                    className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+                  />
+                </div>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="px-4 py-3.5 rounded-2xl bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">bmw</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">audi a8</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">tesla</span>
+                <span className="text-slate-400">Typos are OK.</span>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2">
-              Try “bmw”, “audi a8”, or even a typo — we’ll still find it.
-            </p>
           </div>
         </div>
 
