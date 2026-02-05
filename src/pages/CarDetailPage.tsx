@@ -285,6 +285,94 @@ export function CarDetailPage() {
 
   const shippingEstimate = estimateShippingToGeorgia(stateForShipping, country);
 
+  const estimateRepairRange = (
+    primary: string | null,
+    secondary: string | null,
+    conditionNote: string | null,
+    retailBase: number | null
+  ) => {
+    const text = [primary, secondary, conditionNote].filter(Boolean).join(' ').toUpperCase();
+    if (!text) return null;
+
+    const severe = [
+      'FLOOD',
+      'WATER',
+      'BURN',
+      'FIRE',
+      'ROLLOVER',
+      'FRAME',
+      'ROOF',
+      'SUSPENSION',
+      'ENGINE',
+      'TRANSMISSION',
+      'BIO',
+      'STRIP',
+      'MISSING',
+    ];
+    const medium = [
+      'FRONT',
+      'REAR',
+      'SIDE',
+      'UNDERCARRIAGE',
+      'HAIL',
+      'VANDALISM',
+      'THEFT',
+      'MECHANICAL',
+      'GLASS',
+    ];
+    const light = ['MINOR', 'SCRATCH', 'DENT', 'COSMETIC'];
+
+    let severity = 1;
+    if (severe.some((k) => text.includes(k))) severity = 3;
+    else if (medium.some((k) => text.includes(k))) severity = 2;
+    else if (light.some((k) => text.includes(k))) severity = 1;
+
+    if (text.includes('RUNS AND DRIVES')) severity = Math.max(1, severity - 1);
+    if (text.includes('NON-RUNNER') || text.includes('DOES NOT RUN') || text.includes('NOT RUN')) {
+      severity = Math.min(4, severity + 1);
+    }
+
+    const percentRanges: Record<number, [number, number]> = {
+      1: [0.05, 0.1],
+      2: [0.1, 0.25],
+      3: [0.2, 0.4],
+      4: [0.35, 0.6],
+    };
+
+    const flatRanges: Record<number, [number, number]> = {
+      1: [500, 1500],
+      2: [1500, 4000],
+      3: [4000, 9000],
+      4: [8000, 15000],
+    };
+
+    if (retailBase && retailBase > 0) {
+      const [lowPct, highPct] = percentRanges[severity] ?? percentRanges[2];
+      return {
+        low: Math.round(retailBase * lowPct),
+        high: Math.round(retailBase * highPct),
+        severity,
+      };
+    }
+
+    const [low, high] = flatRanges[severity] ?? flatRanges[2];
+    return { low, high, severity };
+  };
+
+  const retailBase =
+    (typeof car.estimated_retail_value === 'number' && car.estimated_retail_value > 0
+      ? car.estimated_retail_value
+      : typeof raw.lotPlugAcv === 'number' && raw.lotPlugAcv > 0
+      ? raw.lotPlugAcv
+      : null);
+
+  const repairEstimate = estimateRepairRange(
+    car.primary_damage ?? null,
+    car.secondary_damage ?? null,
+    car.condition ?? null,
+    retailBase
+  );
+
   const QuickItem = ({
     label,
     value,
@@ -486,9 +574,21 @@ export function CarDetailPage() {
                     }
                     tone="accent"
                   />
+                  <QuickItem
+                    label="Est. Repair (damage-based)"
+                    value={
+                      repairEstimate
+                        ? `$${repairEstimate.low.toLocaleString()}–$${repairEstimate.high.toLocaleString()}`
+                        : 'Not available'
+                    }
+                    tone="accent"
+                  />
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
                   Rough estimate to the Port of Poti (inland + ocean). Final quotes vary by carrier and timing.
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Repair estimate is a rough guess based on damage keywords and value.
                 </p>
               </div>
 
@@ -519,6 +619,15 @@ export function CarDetailPage() {
                 <div className="border-t px-5 pb-5 pt-4 space-y-2">
                   <InfoRow label="Estimated Value" value={fmtMoney(car.estimated_retail_value ?? raw.lotPlugAcv)} />
                   <InfoRow label="Buy Now Price" value={fmtMoney(car.buy_it_now_price ?? buyNowRaw)} tone="success" />
+                  <InfoRow
+                    label="Est. Repair (damage-based)"
+                    value={
+                      repairEstimate
+                        ? `$${repairEstimate.low.toLocaleString()}–$${repairEstimate.high.toLocaleString()}`
+                        : 'Not available'
+                    }
+                    tone="accent"
+                  />
                   <InfoRow label="Currency" value={fmtCurrency(currency)} />
                   <InfoRow label="Replacement Cost" value={fmtMoney(replacementCost)} />
                 </div>
