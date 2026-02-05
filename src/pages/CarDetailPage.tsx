@@ -223,6 +223,67 @@ export function CarDetailPage() {
 
   const locationShort =
     [city, state].filter(Boolean).join(', ') || country || 'Not available';
+  const stateForShipping = (() => {
+    const value = raw.state_code ?? raw.ts ?? raw.locState ?? state;
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  })();
+
+  const estimateShippingToGeorgia = (stateCode: string | null, countryCode: string | null) => {
+    if (!stateCode) return null;
+    if (countryCode && countryCode.toUpperCase() !== 'USA') return null;
+    const code = stateCode.toUpperCase();
+
+    const buckets: Array<{ states: string[]; low: number; high: number }> = [
+      {
+        states: ['GA', 'FL', 'AL', 'TN', 'KY', 'SC', 'NC'],
+        low: 1800,
+        high: 2600,
+      },
+      {
+        states: ['VA', 'WV', 'MD', 'DC', 'DE', 'PA', 'NJ', 'NY', 'CT', 'RI', 'MA', 'VT', 'NH', 'ME'],
+        low: 1900,
+        high: 2700,
+      },
+      {
+        states: ['LA', 'MS', 'TX'],
+        low: 2200,
+        high: 3200,
+      },
+      {
+        states: ['OH', 'MI', 'IN', 'IL', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
+        low: 2400,
+        high: 3400,
+      },
+      {
+        states: ['OK', 'AR', 'AZ', 'NM'],
+        low: 2600,
+        high: 3600,
+      },
+      {
+        states: ['CO', 'UT', 'ID', 'MT', 'WY', 'NV'],
+        low: 2800,
+        high: 3800,
+      },
+      {
+        states: ['CA', 'OR', 'WA'],
+        low: 3000,
+        high: 4200,
+      },
+      {
+        states: ['AK', 'HI'],
+        low: 4200,
+        high: 6500,
+      },
+    ];
+
+    const bucket = buckets.find((b) => b.states.includes(code));
+    if (!bucket) return null;
+    return bucket;
+  };
+
+  const shippingEstimate = estimateShippingToGeorgia(stateForShipping, country);
 
   const QuickItem = ({
     label,
@@ -416,7 +477,19 @@ export function CarDetailPage() {
                   <QuickItem label="Condition" value={fmtText(car.condition)} />
                   <QuickItem label="Primary Damage" value={fmtText(car.primary_damage)} tone="danger" />
                   <QuickItem label="Location" value={locationShort} />
+                  <QuickItem
+                    label="Est. Shipping to Georgia"
+                    value={
+                      shippingEstimate
+                        ? `$${shippingEstimate.low.toLocaleString()}–$${shippingEstimate.high.toLocaleString()}`
+                        : 'Not available'
+                    }
+                    tone="accent"
+                  />
                 </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  Rough estimate to the Port of Poti (inland + ocean). Final quotes vary by carrier and timing.
+                </p>
               </div>
 
               {car.highlights && car.highlights.length > 0 && (
@@ -488,6 +561,14 @@ export function CarDetailPage() {
                   <InfoRow label="City" value={city || 'Not available'} />
                   <InfoRow label="State" value={state || 'Not available'} />
                   <InfoRow label="Seller" value={seller || 'Not available'} />
+                  <InfoRow
+                    label="Est. Shipping to Georgia"
+                    value={
+                      shippingEstimate
+                        ? `$${shippingEstimate.low.toLocaleString()}–$${shippingEstimate.high.toLocaleString()}`
+                        : 'Not available'
+                    }
+                  />
                 </div>
               </details>
 
