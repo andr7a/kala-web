@@ -239,42 +239,42 @@ export function CarDetailPage() {
       {
         states: ['GA', 'FL', 'AL', 'TN', 'KY', 'SC', 'NC'],
         low: 1800,
-        high: 2600,
+        high: 2200,
       },
       {
         states: ['VA', 'WV', 'MD', 'DC', 'DE', 'PA', 'NJ', 'NY', 'CT', 'RI', 'MA', 'VT', 'NH', 'ME'],
-        low: 1900,
-        high: 2700,
+        low: 2000,
+        high: 2300,
       },
       {
         states: ['LA', 'MS', 'TX'],
-        low: 2200,
-        high: 3200,
+        low: 2100,
+        high: 2500,
       },
       {
         states: ['OH', 'MI', 'IN', 'IL', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
-        low: 2400,
-        high: 3400,
+        low: 2200,
+        high: 2600,
       },
       {
         states: ['OK', 'AR', 'AZ', 'NM'],
-        low: 2600,
-        high: 3600,
+        low: 2300,
+        high: 2700,
       },
       {
         states: ['CO', 'UT', 'ID', 'MT', 'WY', 'NV'],
-        low: 2800,
-        high: 3800,
+        low: 2400,
+        high: 2800,
       },
       {
         states: ['CA', 'OR', 'WA'],
-        low: 3000,
-        high: 4200,
+        low: 2500,
+        high: 2800,
       },
       {
         states: ['AK', 'HI'],
-        low: 4200,
-        high: 6500,
+        low: 2600,
+        high: 2800,
       },
     ];
 
