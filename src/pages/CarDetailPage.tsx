@@ -332,31 +332,37 @@ export function CarDetailPage() {
       severity = Math.min(4, severity + 1);
     }
 
-    const percentRanges: Record<number, [number, number]> = {
-      1: [0.05, 0.1],
-      2: [0.1, 0.25],
-      3: [0.2, 0.4],
-      4: [0.35, 0.6],
+    const basePercent: Record<number, number> = {
+      1: 0.08,
+      2: 0.16,
+      3: 0.28,
+      4: 0.4,
     };
 
-    const flatRanges: Record<number, [number, number]> = {
-      1: [500, 1500],
-      2: [1500, 4000],
-      3: [4000, 9000],
-      4: [8000, 15000],
+    const baseFlat: Record<number, number> = {
+      1: 1200,
+      2: 2400,
+      3: 4200,
+      4: 7000,
     };
+
+    const variance = 0.15; // +/- 15% for a tighter range
 
     if (retailBase && retailBase > 0) {
-      const [lowPct, highPct] = percentRanges[severity] ?? percentRanges[2];
+      const pct = basePercent[severity] ?? basePercent[2];
       return {
-        low: Math.round(retailBase * lowPct),
-        high: Math.round(retailBase * highPct),
+        low: Math.round(retailBase * pct * (1 - variance)),
+        high: Math.round(retailBase * pct * (1 + variance)),
         severity,
       };
     }
 
-    const [low, high] = flatRanges[severity] ?? flatRanges[2];
-    return { low, high, severity };
+    const mid = baseFlat[severity] ?? baseFlat[2];
+    return {
+      low: Math.round(mid * (1 - 0.2)),
+      high: Math.round(mid * (1 + 0.2)),
+      severity,
+    };
   };
 
   const retailBase =
