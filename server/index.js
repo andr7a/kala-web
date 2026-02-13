@@ -4,6 +4,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,16 +27,16 @@ const pool = DATABASE_URL
       // Disable verification to avoid SELF_SIGNED_CERT_IN_CHAIN errors.
       ssl: { rejectUnauthorized: false },
       max: 10,
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 10000,
     })
   : null;
 
 const AUCTION_MIN_INCREMENT = 100;
 const AUCTION_BID_EXTENSION_SECONDS = 10;
 const AUCTION_SCHEMA_SQL = `
-  CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
   CREATE TABLE IF NOT EXISTS live_auctions (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid PRIMARY KEY,
     lot_number text NOT NULL,
     seller_user_id uuid,
     status text NOT NULL DEFAULT 'live' CHECK (status IN ('scheduled', 'live', 'closed', 'cancelled')),
@@ -474,8 +475,11 @@ app.post('/api/auctions', async (req, res) => {
     return;
   }
 
+  const auctionId = randomUUID();
+
   const sql = `
     INSERT INTO live_auctions (
+      id,
       lot_number,
       seller_user_id,
       status,
@@ -488,12 +492,13 @@ app.post('/api/auctions', async (req, res) => {
     VALUES (
       $1,
       $2,
+      $3,
       'live',
       now(),
-      now() + ($3::int * interval '1 second'),
-      $4,
-      $4,
-      $5
+      now() + ($4::int * interval '1 second'),
+      $5,
+      $5,
+      $6
     )
     RETURNING *
   `;
@@ -501,6 +506,7 @@ app.post('/api/auctions', async (req, res) => {
   try {
     await ensureAuctionSchema();
     const result = await pool.query(sql, [
+      auctionId,
       lotNumber,
       sellerUserId,
       AUCTION_BID_EXTENSION_SECONDS,

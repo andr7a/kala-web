@@ -5,10 +5,8 @@
   - Each accepted bid extends the auction by 10 seconds.
 */
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 CREATE TABLE IF NOT EXISTS live_auctions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY,
   lot_number text NOT NULL,
   seller_user_id uuid,
   status text NOT NULL DEFAULT 'live' CHECK (status IN ('scheduled', 'live', 'closed', 'cancelled')),
