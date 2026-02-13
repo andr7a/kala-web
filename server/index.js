@@ -5,9 +5,6 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const { Pool } = pg;
 
@@ -686,19 +683,7 @@ app.post('/api/auctions/:id/bid', async (req, res) => {
   }
 });
 
-const thisFile = fileURLToPath(import.meta.url);
-const isDirectRun = process.argv[1] ? path.resolve(process.argv[1]) === thisFile : false;
-
-if (isDirectRun) {
-  const __dirname = path.dirname(thisFile);
-  const distDir = path.resolve(__dirname, '..', 'dist');
-  if (fs.existsSync(distDir)) {
-    app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distDir, 'index.html'));
-    });
-  }
-
+if (!process.env.VERCEL) {
   const port = Number.parseInt(process.env.PORT ?? '8080', 10);
   app.listen(port, () => {
     console.log(`API server listening on port ${port}`);
