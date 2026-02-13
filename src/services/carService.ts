@@ -55,6 +55,54 @@ export interface Car {
   base_site?: 'copart' | 'iaai' | string;
 }
 
+const API_BASE =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL
+    ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
+    : '';
+
+const API_DEFAULT_LIMIT = (() => {
+  const raw = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_CARS_LIMIT : undefined;
+  const parsed = raw ? Number.parseInt(String(raw), 10) : NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return 300;
+  return Math.min(parsed, 2000);
+})();
+
+export type CarFilterParams = {
+  search?: string;
+  make?: string;
+  model?: string;
+  color?: string;
+  interiorColor?: string;
+  fuel?: string;
+  transmission?: string;
+  condition?: string;
+  yearFrom?: number;
+  yearTo?: number;
+  odometerMin?: number;
+  odometerMax?: number;
+  buyNowAvailability?: 'available' | 'not_available';
+};
+
+export type FilterOptions = {
+  makes: string[];
+  colors: string[];
+  interior_colors: string[];
+  fuels: string[];
+  transmissions: string[];
+  conditions: string[];
+  years: number[];
+  has_buy_now_available?: boolean;
+  has_buy_now_not_available?: boolean;
+};
+
+async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, init);
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
 type CopartImageEntry = {
   highResUrl?: string | null;
   fullUrl?: string | null;
@@ -202,6 +250,50 @@ function parseAuctionDate(item: CopartDetailItem): number | null {
   if (!iso) return null;
   const parsed = new Date(iso).getTime();
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildQueryParams(filters: CarFilterParams | undefined, limit: number, offset: number): string {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+
+  if (filters?.search) params.set('search', filters.search);
+  if (filters?.make) params.set('make', filters.make);
+  if (filters?.model) params.set('model', filters.model);
+  if (filters?.color) params.set('color', filters.color);
+  if (filters?.interiorColor) params.set('interior_color', filters.interiorColor);
+  if (filters?.fuel) params.set('fuel', filters.fuel);
+  if (filters?.transmission) params.set('transmission', filters.transmission);
+  if (filters?.condition) params.set('condition', filters.condition);
+  if (typeof filters?.yearFrom === 'number') params.set('year_from', String(filters.yearFrom));
+  if (typeof filters?.yearTo === 'number') params.set('year_to', String(filters.yearTo));
+  if (typeof filters?.odometerMin === 'number') params.set('odometer_min', String(filters.odometerMin));
+  if (typeof filters?.odometerMax === 'number') params.set('odometer_max', String(filters.odometerMax));
+  if (filters?.buyNowAvailability === 'available') params.set('has_buy_now', 'true');
+  if (filters?.buyNowAvailability === 'not_available') params.set('has_buy_now', 'false');
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
+async function fetchCarsPage(
+  filters: CarFilterParams | undefined,
+  limit: number,
+  offset: number
+): Promise<{ items: CopartDetailItem[]; total: number; limit: number; offset: number }> {
+  const query = buildQueryParams(filters, limit, offset);
+  const data = await fetchApi<{
+    items?: CopartDetailItem[];
+    total?: number;
+    limit?: number;
+    offset?: number;
+  }>(`/api/cars${query}`);
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    total: typeof data.total === 'number' ? data.total : 0,
+    limit: typeof data.limit === 'number' ? data.limit : limit,
+    offset: typeof data.offset === 'number' ? data.offset : offset,
+  };
 }
 
 function extractImagesListRaw(item: CopartDetailItem): ImagesListRaw | null {
@@ -359,12 +451,115 @@ function toCar(item: CopartDetailItem): Car {
   };
 }
 
-export async function fetchAllCars(): Promise<Car[]> {
+export async function fetchCars(options?: {
+  filters?: CarFilterParams;
+  fetchAll?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: Car[]; total: number }> {
+  const limit = options?.limit ?? API_DEFAULT_LIMIT;
+  const offset = options?.offset ?? 0;
+  const fetchAll = options?.fetchAll ?? false;
+
+  try {
+    if (!fetchAll) {
+      const page = await fetchCarsPage(options?.filters, limit, offset);
+      const items = page.items.map((item) => toCar(item));
+      return { items, total: page.total };
+    }
+
+    const pageSize = Math.min(Math.max(limit, 1), 2000);
+    let pageOffset = 0;
+    let total = 0;
+    const items: Car[] = [];
+
+    while (true) {
+      const page = await fetchCarsPage(options?.filters, pageSize, pageOffset);
+      if (page.items.length === 0) break;
+      items.push(...page.items.map((item) => toCar(item)));
+      total = page.total;
+      pageOffset += page.items.length;
+      if (pageOffset >= total) break;
+    }
+
+    return { items, total: total || items.length };
+  } catch (error) {
+    console.warn('API unavailable, falling back to local data.', error);
+  }
+
   const items = Array.isArray(copartData.items) ? copartData.items : [];
-  return items.map((item) => toCar(item as CopartDetailItem));
+  return {
+    items: items.map((item) => toCar(item as CopartDetailItem)),
+    total: items.length,
+  };
+}
+
+export async function fetchFilterOptions(): Promise<FilterOptions | null> {
+  try {
+    const data = await fetchApi<FilterOptions>('/api/cars/filters');
+    return {
+      makes: Array.isArray(data.makes) ? data.makes.filter(Boolean) : [],
+      colors: Array.isArray(data.colors) ? data.colors.filter(Boolean) : [],
+      interior_colors: Array.isArray(data.interior_colors) ? data.interior_colors.filter(Boolean) : [],
+      fuels: Array.isArray(data.fuels) ? data.fuels.filter(Boolean) : [],
+      transmissions: Array.isArray(data.transmissions) ? data.transmissions.filter(Boolean) : [],
+      conditions: Array.isArray(data.conditions) ? data.conditions.filter(Boolean) : [],
+      years: Array.isArray(data.years) ? data.years.filter((y) => typeof y === 'number') : [],
+      has_buy_now_available: Boolean(data.has_buy_now_available),
+      has_buy_now_not_available: Boolean(data.has_buy_now_not_available),
+    };
+  } catch (error) {
+    console.warn('API unavailable for filter options.', error);
+    return null;
+  }
+}
+
+export async function fetchAllCars(): Promise<Car[]> {
+  const result = await fetchCars({ limit: API_DEFAULT_LIMIT });
+  return result.items;
 }
 
 export async function fetchCarByLotNumber(lotNumber: string): Promise<Car | null> {
+  try {
+    const item = await fetchApi<CopartDetailItem>(`/api/cars/${encodeURIComponent(lotNumber)}`);
+    if (item) return toCar(item);
+  } catch (error) {
+    console.warn('API unavailable for lot lookup, falling back to local data.', error);
+  }
+
   const cars = await fetchAllCars();
   return cars.find((car) => car.lot_number === lotNumber) ?? null;
+}
+
+export async function fetchCarsByLotNumbers(lots: string[]): Promise<Car[]> {
+  const uniqueLots = Array.from(new Set(lots.map(String))).filter(Boolean);
+  if (uniqueLots.length === 0) return [];
+
+  try {
+    const data = await fetchApi<{ items?: CopartDetailItem[] }>('/api/cars/by-lots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lots: uniqueLots }),
+    });
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (items.length > 0) {
+      return items.map((item) => toCar(item));
+    }
+  } catch (error) {
+    console.warn('API unavailable for favorites lookup, falling back to local data.', error);
+  }
+
+  const items = Array.isArray(copartData.items) ? copartData.items : [];
+  const lotSet = new Set(uniqueLots);
+  return items
+    .filter((item) =>
+      lotSet.has(
+        String(
+          (item as CopartDetailItem).lot ??
+            (item as CopartDetailItem).lot_number_numeric ??
+            ''
+        )
+      )
+    )
+    .map((item) => toCar(item as CopartDetailItem));
 }

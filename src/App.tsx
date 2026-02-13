@@ -11,6 +11,7 @@ import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
 import FavoritesPage from './pages/FavoritesPage';
 import AIAdvisorPage from './pages/AIAdvisorPage';
+import AuctionsPage from './pages/AuctionsPage';
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
             />
 
             <Route path="/ai" element={<AIAdvisorPage />} />
+            <Route path="/auctions" element={<AuctionsPage />} />
           </Routes>
         </ComparisonProvider>
       </AuthProvider>

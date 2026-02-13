@@ -1,10 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CarCard } from '../components/CarCard';
 import { useComparison } from '../context/ComparisonContext';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Sparkles, Search } from 'lucide-react';
-import { fetchAllCars, type Car } from '../services/carService';
+import { ArrowRight, X, Filter, User, LogOut, Heart, ChevronDown, Sparkles, Search, Gavel } from 'lucide-react';
+import { fetchCars, fetchFilterOptions, type Car, type CarFilterParams, type FilterOptions } from '../services/carService';
 
 function normalizeSearchText(value: string): string {
   return value
@@ -80,11 +80,29 @@ export function CarsPage() {
   const [yearTo, setYearTo] = useState<string>('');
   const [isScrolled, setIsScrolled] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+  const [totalCars, setTotalCars] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { selectedCars, toggleCar, clearComparison } = useComparison();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const isGuest = !user;
+  const requestIdRef = useRef(0);
+  const hasActiveFilters =
+    searchQuery ||
+    selectedCompany ||
+    selectedBrand ||
+    selectedModel ||
+    selectedColor ||
+    selectedInteriorColor ||
+    selectedFuelType ||
+    selectedTransmission ||
+    selectedBuyNowAvailability ||
+    selectedOdometerRange ||
+    selectedCondition ||
+    yearFrom ||
+    yearTo;
 
   const handleSignOut = async () => {
     if (isGuest) {
@@ -96,19 +114,119 @@ export function CarsPage() {
   };
 
   useEffect(() => {
+    let active = true;
+    const loadFilterOptions = async () => {
+      const options = await fetchFilterOptions();
+      if (active) {
+        setFilterOptions(options);
+      }
+    };
+    loadFilterOptions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
     const loadCars = async () => {
       setLoading(true);
+      setLoadingMore(false);
+      setTotalCars(null);
+
+      const filters: CarFilterParams = {};
+      if (selectedBrand) filters.make = selectedBrand;
+      if (selectedModel) filters.model = selectedModel;
+      if (selectedColor) filters.color = selectedColor;
+      if (selectedInteriorColor) filters.interiorColor = selectedInteriorColor;
+      if (selectedFuelType) filters.fuel = selectedFuelType;
+      if (selectedTransmission) filters.transmission = selectedTransmission;
+      if (selectedCondition) filters.condition = selectedCondition;
+      if (yearFrom) filters.yearFrom = Number.parseInt(yearFrom, 10);
+      if (yearTo) filters.yearTo = Number.parseInt(yearTo, 10);
+      if (selectedBuyNowAvailability === 'available' || selectedBuyNowAvailability === 'not_available') {
+        filters.buyNowAvailability = selectedBuyNowAvailability;
+      }
+
+      if (selectedOdometerRange) {
+        const [minKmRaw, maxKmRaw] = selectedOdometerRange.split('-').map((v) => Number.parseInt(v, 10));
+        const kmToMiles = (km: number) => Math.round(km / 1.60934);
+        if (Number.isFinite(minKmRaw)) filters.odometerMin = kmToMiles(minKmRaw);
+        if (Number.isFinite(maxKmRaw)) filters.odometerMax = kmToMiles(maxKmRaw);
+      }
+
+      const mergeCars = (prev: Car[], incoming: Car[]) => {
+        const map = new Map<string, Car>();
+        for (const car of prev) map.set(car.lot_number, car);
+        for (const car of incoming) {
+          if (!map.has(car.lot_number)) map.set(car.lot_number, car);
+        }
+        return Array.from(map.values());
+      };
+
       try {
-        const data = await fetchAllCars();
-        setCars(data);
+        if (!hasActiveFilters) {
+          const result = await fetchCars({ filters, fetchAll: false, limit: 300, offset: 0 });
+          if (requestId !== requestIdRef.current) return;
+          setCars(result.items);
+          setTotalCars(result.total || result.items.length);
+          setLoading(false);
+          return;
+        }
+
+        const firstPage = await fetchCars({ filters, fetchAll: false, limit: 300, offset: 0 });
+        if (requestId !== requestIdRef.current) return;
+        setCars(firstPage.items);
+        const total = firstPage.total || firstPage.items.length;
+        setTotalCars(total);
+        setLoading(false);
+
+        if (firstPage.items.length >= total) {
+          setLoadingMore(false);
+          return;
+        }
+
+        setLoadingMore(true);
+        let offset = firstPage.items.length;
+        const pageSize = 2000;
+        while (offset < total) {
+          const page = await fetchCars({ filters, fetchAll: false, limit: pageSize, offset });
+          if (requestId !== requestIdRef.current) return;
+          if (page.items.length === 0) break;
+          setCars((prev) => mergeCars(prev, page.items));
+          offset += page.items.length;
+        }
+        if (requestId === requestIdRef.current) {
+          setLoadingMore(false);
+        }
       } catch (error) {
         console.error('Error fetching cars:', error);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
-      setLoading(false);
     };
 
-    loadCars();
-  }, []);
+    const debounceMs = searchQuery ? 300 : 0;
+    const handle = setTimeout(loadCars, debounceMs);
+    return () => clearTimeout(handle);
+  }, [
+    searchQuery,
+    selectedCompany,
+    selectedBrand,
+    selectedModel,
+    selectedColor,
+    selectedInteriorColor,
+    selectedFuelType,
+    selectedTransmission,
+    selectedBuyNowAvailability,
+    selectedOdometerRange,
+    selectedCondition,
+    yearFrom,
+    yearTo,
+    hasActiveFilters,
+  ]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -163,9 +281,10 @@ export function CarsPage() {
 
   // Get unique brands
   const brands = useMemo(() => {
+    if (filterOptions?.makes?.length) return filterOptions.makes;
     const uniqueBrands = Array.from(new Set(cars.map(car => car.make))).sort();
     return uniqueBrands;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   const companies = useMemo(() => {
     const uniqueCompanies = Array.from(
@@ -184,54 +303,66 @@ export function CarsPage() {
 
   // Get unique colors
   const colors = useMemo(() => {
+    if (filterOptions?.colors?.length) return filterOptions.colors;
     const uniqueColors = Array.from(new Set(cars.map(car => car.color).filter(Boolean))).sort() as string[];
     return uniqueColors;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   // Get unique conditions
   const conditions = useMemo(() => {
+    if (filterOptions?.conditions?.length) return filterOptions.conditions;
     const uniqueConditions = Array.from(new Set(cars.map(car => car.condition).filter(Boolean))).sort() as string[];
     return uniqueConditions;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   const interiorColors = useMemo(() => {
+    if (filterOptions?.interior_colors?.length) return filterOptions.interior_colors;
     const uniqueInteriorColors = Array.from(
       new Set(cars.map((car) => getInteriorColor(car)).filter(Boolean))
     ).sort() as string[];
     return uniqueInteriorColors;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   const fuelTypes = useMemo(() => {
+    if (filterOptions?.fuels?.length) return filterOptions.fuels;
     const uniqueFuelTypes = Array.from(
       new Set(cars.map((car) => getFuelType(car)).filter(Boolean))
     ).sort() as string[];
     return uniqueFuelTypes;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   const transmissions = useMemo(() => {
+    if (filterOptions?.transmissions?.length) return filterOptions.transmissions;
     const uniqueTransmissions = Array.from(
       new Set(cars.map((car) => getTransmissionType(car)).filter(Boolean))
     ).sort() as string[];
     return uniqueTransmissions;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   const buyNowAvailabilityOptions = useMemo(() => {
-    const hasAvailable = cars.some((car) => hasBuyNowPrice(car));
-    const hasNotAvailable = cars.some((car) => !hasBuyNowPrice(car));
+    const hasAvailable =
+      typeof filterOptions?.has_buy_now_available === 'boolean'
+        ? filterOptions.has_buy_now_available
+        : cars.some((car) => hasBuyNowPrice(car));
+    const hasNotAvailable =
+      typeof filterOptions?.has_buy_now_not_available === 'boolean'
+        ? filterOptions.has_buy_now_not_available
+        : cars.some((car) => !hasBuyNowPrice(car));
 
     return [
       hasAvailable ? { value: 'available', label: 'Buy Now Available' } : null,
       hasNotAvailable ? { value: 'not_available', label: 'Buy Now Not Available' } : null,
     ].filter(Boolean) as Array<{ value: string; label: string }>;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   // Get available years for dropdown
   const availableYears = useMemo(() => {
+    if (filterOptions?.years?.length) return filterOptions.years;
     const years = Array.from(
       new Set(cars.map(car => car.year).filter((y): y is number => typeof y === 'number' && !Number.isNaN(y)))
     ).sort((a, b) => b - a);
     return years;
-  }, [cars]);
+  }, [cars, filterOptions]);
 
   // Filter cars based on selected filters
   const filteredCars = useMemo(() => {
@@ -347,20 +478,6 @@ export function CarsPage() {
     }
   }, [buyNowAvailabilityOptions, selectedBuyNowAvailability]);
 
-  const hasActiveFilters =
-    searchQuery ||
-    selectedCompany ||
-    selectedBrand ||
-    selectedModel ||
-    selectedColor ||
-    selectedInteriorColor ||
-    selectedFuelType ||
-    selectedTransmission ||
-    selectedBuyNowAvailability ||
-    selectedOdometerRange ||
-    selectedCondition ||
-    yearFrom ||
-    yearTo;
   const canCompare = selectedCars.length >= 1;
 
   return (
@@ -587,6 +704,13 @@ export function CarsPage() {
                   <Heart size={isScrolled ? 14 : 16} />
                   Favorites
                 </button>
+                <button
+                  onClick={() => navigate('/auctions')}
+                  className={`bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-lg font-medium transition-all duration-300 flex-shrink-0 flex items-center gap-2 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                >
+                  <Gavel size={isScrolled ? 14 : 16} />
+                  Auctions
+                </button>
                 <div className={`${isGuest ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'} rounded-lg font-medium transition-all duration-300 flex-shrink-0 flex items-center gap-2 ${isScrolled ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}>
                   <User size={isScrolled ? 14 : 16} />
                   {isGuest ? 'Guest' : user?.email?.split('@')[0]}
@@ -654,7 +778,7 @@ export function CarsPage() {
                 <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
                 {hasActiveFilters && (
                   <span className="text-sm text-gray-500">
-                    ({filteredCars.length} of {cars.length} cars)
+                    ({filteredCars.length} of {totalCars ?? cars.length} cars)
                   </span>
                 )}
               </div>
@@ -899,6 +1023,12 @@ export function CarsPage() {
             </div>
               </div>
             )}
+          </div>
+        )}
+
+        {loadingMore && (
+          <div className="mb-4 text-sm text-gray-500">
+            Loading more cars… {cars.length}{totalCars ? ` / ${totalCars}` : ''}
           </div>
         )}
 
