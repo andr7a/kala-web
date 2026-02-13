@@ -83,13 +83,13 @@ export default function AuctionsPage() {
 
   const refreshAuctions = useCallback(async () => {
     try {
-      setError(null);
       const liveAuctions = await fetchLiveAuctions();
       setAuctions(liveAuctions);
 
       if (liveAuctions.length === 0) {
         setAuctionCars({});
         setAuctionBids({});
+        setError(null);
         return;
       }
 
@@ -110,6 +110,7 @@ export default function AuctionsPage() {
       }
       setAuctionCars(carsByLot);
       setAuctionBids(Object.fromEntries(bidsPerAuction));
+      setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load auctions.';
       setError(message);

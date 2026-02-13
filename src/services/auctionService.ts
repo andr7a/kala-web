@@ -93,9 +93,10 @@ function toNumber(value: number | string): number {
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, init);
-  const json = (await response.json().catch(() => null)) as { error?: string } | null;
+  const json = (await response.json().catch(() => null)) as { error?: string; details?: string } | null;
   if (!response.ok) {
-    const message = json?.error || `Request failed (${response.status})`;
+    const details = json?.details ? ` - ${json.details}` : '';
+    const message = `${json?.error || 'Request failed'} (${response.status})${details}`;
     throw new Error(message);
   }
   if (json === null) {
