@@ -37,12 +37,14 @@ export interface PlaceBidResult {
 export interface CreateLiveAuctionInput {
   lotNumber: string;
   startingBid: number;
+  sellerUserId?: string | null;
 }
 
 export interface PlaceAuctionBidInput {
   auctionId: string;
   amount: number;
   bidderName: string;
+  bidderUserId?: string | null;
 }
 
 type LiveAuctionRow = {
@@ -151,6 +153,7 @@ export async function createLiveAuction(input: CreateLiveAuctionInput): Promise<
     body: JSON.stringify({
       lotNumber: input.lotNumber.trim(),
       startingBid: input.startingBid,
+      sellerUserId: input.sellerUserId ?? null,
     }),
   });
   return mapAuction(data);
@@ -172,6 +175,7 @@ export async function placeAuctionBid(input: PlaceAuctionBidInput): Promise<Plac
       body: JSON.stringify({
         amount: input.amount,
         bidderName: input.bidderName,
+        bidderUserId: input.bidderUserId ?? null,
       }),
     }
   );

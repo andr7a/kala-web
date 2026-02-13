@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock3, Gavel, Search } from 'lucide-react';
 import { fetchCars, fetchCarsByLotNumbers, type Car } from '../services/carService';
+import { useAuth } from '../context/AuthContext';
 import {
   closeLiveAuction,
   createLiveAuction,
@@ -49,6 +50,7 @@ type AuctionView = LiveAuction & {
 };
 
 export default function AuctionsPage() {
+  const { user } = useAuth();
   const [auctions, setAuctions] = useState<LiveAuction[]>([]);
   const [auctionCars, setAuctionCars] = useState<Record<string, Car>>({});
   const [auctionBids, setAuctionBids] = useState<Record<string, AuctionBid[]>>({});
@@ -151,6 +153,18 @@ export default function AuctionsPage() {
   }, [bidderName]);
 
   useEffect(() => {
+    const emailName = user?.email?.split('@')[0]?.trim();
+    if (!emailName) return;
+    setBidderName((prev) => {
+      const current = prev.trim();
+      if (!current || current.toLowerCase() === 'guest') {
+        return emailName;
+      }
+      return prev;
+    });
+  }, [user?.id, user?.email]);
+
+  useEffect(() => {
     const query = carQuery.trim();
     if (query.length < 2) {
       setCarResults([]);
@@ -224,6 +238,7 @@ export default function AuctionsPage() {
       await createLiveAuction({
         lotNumber: selectedCar.lot_number,
         startingBid: starting,
+        sellerUserId: user?.id ?? null,
       });
       setCarQuery('');
       setCarResults([]);
@@ -254,6 +269,7 @@ export default function AuctionsPage() {
         auctionId: auction.id,
         amount,
         bidderName: bidderName.trim() || 'Guest',
+        bidderUserId: user?.id ?? null,
       });
       setBidInputs((prev) => ({
         ...prev,
@@ -387,6 +403,9 @@ export default function AuctionsPage() {
             <h2 className="mb-4 text-lg font-semibold text-slate-900">Bidder Profile</h2>
             <p className="mb-3 text-sm text-slate-600">
               This name is attached to each bid. Keep it short so it is readable in live bidding.
+            </p>
+            <p className="mb-2 text-xs text-slate-500">
+              {user?.email ? `Signed in as ${user.email}` : 'Guest mode (no account required)'}
             </p>
             <label className="mb-1 block text-xs font-medium text-slate-700">Bidder name</label>
             <input
