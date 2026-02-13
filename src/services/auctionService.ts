@@ -98,6 +98,9 @@ async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
     const message = json?.error || `Request failed (${response.status})`;
     throw new Error(message);
   }
+  if (json === null) {
+    throw new Error('Invalid API response');
+  }
   return json as T;
 }
 
@@ -132,17 +135,17 @@ function mapBid(row: AuctionBidRow): AuctionBid {
 
 export async function fetchLiveAuctions(options?: { includeClosed?: boolean }): Promise<LiveAuction[]> {
   const query = options?.includeClosed ? '?include_closed=true' : '';
-  const data = await fetchApi<{ items?: LiveAuctionRow[] }>(`/api/auctions${query}`);
-  const items = Array.isArray(data.items) ? data.items : [];
+  const data = await fetchApi<{ items?: LiveAuctionRow[] } | null>(`/api/auctions${query}`);
+  const items = Array.isArray(data?.items) ? data.items : [];
   return items.map((row) => mapAuction(row));
 }
 
 export async function fetchAuctionBids(auctionId: string, limit = 20): Promise<AuctionBid[]> {
   const safeLimit = Math.min(Math.max(Math.round(limit), 1), 100);
-  const data = await fetchApi<{ items?: AuctionBidRow[] }>(
+  const data = await fetchApi<{ items?: AuctionBidRow[] } | null>(
     `/api/auctions/${encodeURIComponent(auctionId)}/bids?limit=${safeLimit}`
   );
-  const items = Array.isArray(data.items) ? data.items : [];
+  const items = Array.isArray(data?.items) ? data.items : [];
   return items.map((row) => mapBid(row));
 }
 
