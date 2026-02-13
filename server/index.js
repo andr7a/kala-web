@@ -31,12 +31,16 @@ const pool = DATABASE_URL
 
 const AUCTION_MIN_INCREMENT = 100;
 const AUCTION_BID_EXTENSION_SECONDS = 10;
+const AUCTION_START_DELAY_SECONDS = 60;
+const MAX_SAVED_AUCTION_LOTS = 3;
 const AUCTION_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS live_auctions (
     id uuid PRIMARY KEY,
     lot_number text NOT NULL,
     seller_user_id uuid,
-    status text NOT NULL DEFAULT 'live' CHECK (status IN ('scheduled', 'live', 'closed', 'cancelled')),
+    status text NOT NULL DEFAULT 'live' CHECK (status IN ('queued', 'scheduled', 'live', 'closed', 'cancelled')),
+    queue_group_id uuid,
+    queue_position integer,
     starts_at timestamptz NOT NULL DEFAULT now(),
     ends_at timestamptz NOT NULL DEFAULT (now() + interval '10 seconds'),
     starting_bid numeric(12,2) NOT NULL CHECK (starting_bid >= 0),
@@ -50,6 +54,22 @@ const AUCTION_SCHEMA_SQL = `
     updated_at timestamptz NOT NULL DEFAULT now()
   );
 
+  ALTER TABLE live_auctions
+    ADD COLUMN IF NOT EXISTS queue_group_id uuid;
+
+  ALTER TABLE live_auctions
+    ADD COLUMN IF NOT EXISTS queue_position integer;
+
+  ALTER TABLE live_auctions
+    DROP CONSTRAINT IF EXISTS live_auctions_status_check;
+
+  ALTER TABLE live_auctions
+    ADD CONSTRAINT live_auctions_status_check
+    CHECK (status IN ('queued', 'scheduled', 'live', 'closed', 'cancelled')) NOT VALID;
+
+  ALTER TABLE live_auctions
+    VALIDATE CONSTRAINT live_auctions_status_check;
+
   CREATE TABLE IF NOT EXISTS auction_bids (
     id bigserial PRIMARY KEY,
     auction_id uuid NOT NULL REFERENCES live_auctions(id) ON DELETE CASCADE,
@@ -62,15 +82,22 @@ const AUCTION_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_live_auctions_status_ends_at
     ON live_auctions(status, ends_at DESC);
 
+  CREATE INDEX IF NOT EXISTS idx_live_auctions_status_starts_at
+    ON live_auctions(status, starts_at ASC);
+
   CREATE INDEX IF NOT EXISTS idx_live_auctions_lot
     ON live_auctions(lot_number);
+
+  CREATE INDEX IF NOT EXISTS idx_live_auctions_queue
+    ON live_auctions(queue_group_id, queue_position);
 
   CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_created_at
     ON auction_bids(auction_id, created_at DESC);
 
+  DROP INDEX IF EXISTS idx_live_auctions_single_open_lot;
   CREATE UNIQUE INDEX IF NOT EXISTS idx_live_auctions_single_open_lot
     ON live_auctions(lot_number)
-    WHERE status IN ('scheduled', 'live');
+    WHERE status IN ('queued', 'scheduled', 'live');
 
   CREATE OR REPLACE FUNCTION set_live_auctions_updated_at()
   RETURNS trigger
@@ -90,6 +117,7 @@ const AUCTION_SCHEMA_SQL = `
 `;
 
 let auctionSchemaInitPromise = null;
+let lastAuctionPruneAtMs = 0;
 
 async function ensureAuctionSchema() {
   if (!pool) throw new Error('DATABASE_URL not configured');
@@ -103,6 +131,94 @@ async function ensureAuctionSchema() {
     });
   }
   await auctionSchemaInitPromise;
+}
+
+async function activateNextQueuedAuction(db, closedAuctionRow) {
+  const queueGroupId = closedAuctionRow?.queue_group_id ?? null;
+  const queuePosition = Number(closedAuctionRow?.queue_position);
+
+  if (!queueGroupId || !Number.isFinite(queuePosition)) {
+    return null;
+  }
+
+  const nextQueuePosition = queuePosition + 1;
+  const client = await db.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const nextResult = await client.query(
+      `
+        SELECT id
+        FROM live_auctions
+        WHERE queue_group_id = $1
+          AND queue_position = $2
+          AND status = 'queued'
+        FOR UPDATE
+      `,
+      [queueGroupId, nextQueuePosition]
+    );
+
+    if (nextResult.rows.length === 0) {
+      await client.query('COMMIT');
+      return null;
+    }
+
+    const nextAuctionId = nextResult.rows[0].id;
+    const updateResult = await client.query(
+      `
+        UPDATE live_auctions
+        SET
+          status = 'live',
+          starts_at = now(),
+          ends_at = now() + ($2::int * interval '1 second')
+        WHERE id = $1
+          AND status = 'queued'
+        RETURNING *
+      `,
+      [nextAuctionId, AUCTION_BID_EXTENSION_SECONDS]
+    );
+
+    await client.query('COMMIT');
+    return updateResult.rows[0] ?? null;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function pruneAuctionsToLastThreeLots(db, options = {}) {
+  const force = options.force === true;
+  const now = Date.now();
+  if (!force && now - lastAuctionPruneAtMs < 15000) {
+    return 0;
+  }
+  lastAuctionPruneAtMs = now;
+
+  const lotCountResult = await db.query('SELECT COUNT(DISTINCT lot_number) AS lot_count FROM live_auctions');
+  const lotCount = Number(lotCountResult.rows?.[0]?.lot_count ?? 0);
+  if (!Number.isFinite(lotCount) || lotCount <= MAX_SAVED_AUCTION_LOTS) {
+    return 0;
+  }
+
+  const deleteResult = await db.query(`
+    WITH keep_lots AS (
+      SELECT lot_number
+      FROM live_auctions
+      GROUP BY lot_number
+      ORDER BY MAX(created_at) DESC
+      LIMIT $1
+    )
+    DELETE FROM live_auctions
+    WHERE lot_number NOT IN (SELECT lot_number FROM keep_lots)
+    RETURNING id
+  `, [MAX_SAVED_AUCTION_LOTS]);
+
+  return deleteResult.rowCount ?? 0;
 }
 
 function clampInt(value, min, max, fallback) {
@@ -130,6 +246,10 @@ function parseAuctionRow(row) {
     current_bid: Number(row.current_bid),
     min_increment: Number(row.min_increment),
     total_bids: Number(row.total_bids),
+    queue_position:
+      row.queue_position === null || row.queue_position === undefined
+        ? null
+        : Number(row.queue_position),
   };
 }
 
@@ -389,7 +509,7 @@ app.get('/api/auctions', async (req, res) => {
 
   const whereClause = includeClosed
     ? ''
-    : "WHERE status IN ('live', 'scheduled')";
+    : "WHERE status IN ('live', 'scheduled', 'queued')";
 
   const sql = `
     SELECT *
@@ -399,8 +519,9 @@ app.get('/api/auctions', async (req, res) => {
       CASE status
         WHEN 'live' THEN 0
         WHEN 'scheduled' THEN 1
-        WHEN 'closed' THEN 2
-        ELSE 3
+        WHEN 'queued' THEN 2
+        WHEN 'closed' THEN 3
+        ELSE 4
       END ASC,
       ends_at ASC,
       created_at DESC
@@ -410,9 +531,24 @@ app.get('/api/auctions', async (req, res) => {
   try {
     await ensureAuctionSchema();
 
-    await pool.query(
-      "UPDATE live_auctions SET status = 'closed' WHERE status = 'live' AND ends_at <= now()"
+    const closeResult = await pool.query(
+      "UPDATE live_auctions SET status = 'closed' WHERE status IN ('live', 'scheduled') AND ends_at <= now() RETURNING *"
     );
+    for (const closed of closeResult.rows ?? []) {
+      await activateNextQueuedAuction(pool, closed);
+    }
+    await pool.query(
+      `
+        UPDATE live_auctions
+        SET status = 'live'
+        WHERE status = 'scheduled'
+          AND starts_at <= now()
+          AND created_at <= now() - ($1::int * interval '1 second')
+          AND ends_at > now()
+      `,
+      [AUCTION_START_DELAY_SECONDS]
+    );
+    await pruneAuctionsToLastThreeLots(pool);
 
     const result = await pool.query(sql);
     res.json({ items: result.rows.map((row) => parseAuctionRow(row)) });
@@ -490,12 +626,12 @@ app.post('/api/auctions', async (req, res) => {
       $1,
       $2,
       $3,
-      'live',
-      now(),
+      'scheduled',
       now() + ($4::int * interval '1 second'),
-      $5,
-      $5,
-      $6
+      now() + (($4::int + $5::int) * interval '1 second'),
+      $6,
+      $6,
+      $7
     )
     RETURNING *
   `;
@@ -506,10 +642,12 @@ app.post('/api/auctions', async (req, res) => {
       auctionId,
       lotNumber,
       sellerUserId,
+      AUCTION_START_DELAY_SECONDS,
       AUCTION_BID_EXTENSION_SECONDS,
       startingBid,
       AUCTION_MIN_INCREMENT,
     ]);
+    await pruneAuctionsToLastThreeLots(pool, { force: true });
     res.status(201).json(parseAuctionRow(result.rows[0]));
   } catch (error) {
     if (error && error.code === '23505') {
@@ -518,6 +656,137 @@ app.post('/api/auctions', async (req, res) => {
     }
     console.error('API /api/auctions (POST) error', error);
     res.status(500).json({ error: 'Could not create auction', details: error?.message || 'Unknown database error' });
+  }
+});
+
+app.post('/api/auctions/schedule', async (req, res) => {
+  if (!pool) {
+    res.status(500).json({ error: 'DATABASE_URL not configured' });
+    return;
+  }
+
+  const lotNumbersRaw = Array.isArray(req.body?.lotNumbers) ? req.body.lotNumbers : [];
+  const lotNumbers = Array.from(
+    new Set(
+      lotNumbersRaw
+        .map((lot) => String(lot ?? '').trim())
+        .filter(Boolean)
+    )
+  ).slice(0, MAX_SAVED_AUCTION_LOTS);
+
+  const startingBid = asMoney(req.body?.startingBid);
+  const sellerUserId = typeof req.body?.sellerUserId === 'string' ? req.body.sellerUserId.trim() || null : null;
+
+  if (lotNumbers.length === 0) {
+    res.status(400).json({ error: 'lotNumbers must include at least one lot' });
+    return;
+  }
+  if (!Number.isFinite(startingBid) || startingBid < 0) {
+    res.status(400).json({ error: 'startingBid must be >= 0' });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await ensureAuctionSchema();
+    await client.query('BEGIN');
+
+    const existingResult = await client.query(
+      `
+        SELECT lot_number
+        FROM live_auctions
+        WHERE lot_number = ANY($1::text[])
+          AND status IN ('queued', 'scheduled', 'live')
+      `,
+      [lotNumbers]
+    );
+    if (existingResult.rows.length > 0) {
+      const lots = existingResult.rows.map((row) => row.lot_number);
+      await client.query('ROLLBACK');
+      res.status(409).json({
+        error: 'Some lots already have open auctions',
+        lots,
+      });
+      return;
+    }
+
+    const queueGroupId = randomUUID();
+    const created = [];
+
+    for (let index = 0; index < lotNumbers.length; index += 1) {
+      const lotNumber = lotNumbers[index];
+      const auctionId = randomUUID();
+      const queuePosition = index + 1;
+      const isFirst = index === 0;
+
+      const result = await client.query(
+        `
+          INSERT INTO live_auctions (
+            id,
+            lot_number,
+            seller_user_id,
+            status,
+            queue_group_id,
+            queue_position,
+            starts_at,
+            ends_at,
+            starting_bid,
+            current_bid,
+            min_increment
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            CASE
+              WHEN $7::boolean THEN now() + ($8::int * interval '1 second')
+              ELSE now()
+            END,
+            CASE
+              WHEN $7::boolean THEN now() + (($8::int + $9::int) * interval '1 second')
+              ELSE now() + ($9::int * interval '1 second')
+            END,
+            $10,
+            $10,
+            $11
+          )
+          RETURNING *
+        `,
+        [
+          auctionId,
+          lotNumber,
+          sellerUserId,
+          isFirst ? 'scheduled' : 'queued',
+          queueGroupId,
+          queuePosition,
+          isFirst,
+          AUCTION_START_DELAY_SECONDS,
+          AUCTION_BID_EXTENSION_SECONDS,
+          startingBid,
+          AUCTION_MIN_INCREMENT,
+        ]
+      );
+
+      created.push(parseAuctionRow(result.rows[0]));
+    }
+
+    await client.query('COMMIT');
+    await pruneAuctionsToLastThreeLots(pool, { force: true });
+    res.status(201).json({
+      group_id: queueGroupId,
+      items: created,
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+    console.error('API /api/auctions/schedule error', error);
+    res.status(500).json({ error: 'Could not schedule auctions', details: error?.message || 'Unknown database error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -548,6 +817,8 @@ app.post('/api/auctions/:id/close', async (req, res) => {
       res.status(404).json({ error: 'Auction not found or already closed' });
       return;
     }
+    await activateNextQueuedAuction(pool, result.rows[0]);
+    await pruneAuctionsToLastThreeLots(pool, { force: true });
     res.json({ ok: true, auction: parseAuctionRow(result.rows[0]) });
   } catch (error) {
     console.error('API /api/auctions/:id/close error', error);
@@ -592,27 +863,53 @@ app.post('/api/auctions/:id/bid', async (req, res) => {
       return;
     }
 
-    const auction = lockResult.rows[0];
+    let auction = lockResult.rows[0];
     const now = new Date();
     const startsAt = new Date(auction.starts_at);
+    const createdAt = new Date(auction.created_at);
     const endsAt = new Date(auction.ends_at);
+    const earliestAllowedStartAt = new Date(
+      Math.max(
+        startsAt.getTime(),
+        createdAt.getTime() + AUCTION_START_DELAY_SECONDS * 1000
+      )
+    );
+
+    if (now >= endsAt) {
+      const closeResult = await client.query(
+        "UPDATE live_auctions SET status = 'closed' WHERE id = $1 RETURNING *",
+        [auctionId]
+      );
+      await client.query('COMMIT');
+      if (closeResult.rows.length > 0) {
+        await activateNextQueuedAuction(pool, closeResult.rows[0]);
+        await pruneAuctionsToLastThreeLots(pool, { force: true });
+      }
+      res.status(400).json({ error: 'Auction has ended' });
+      return;
+    }
+
+    if (auction.status === 'scheduled') {
+      if (now < earliestAllowedStartAt) {
+        const remainingSeconds = Math.max(
+          1,
+          Math.ceil((earliestAllowedStartAt.getTime() - now.getTime()) / 1000)
+        );
+        await client.query('ROLLBACK');
+        res.status(400).json({ error: `Auction has not started yet (${remainingSeconds}s remaining)` });
+        return;
+      }
+
+      const activateResult = await client.query(
+        "UPDATE live_auctions SET status = 'live' WHERE id = $1 RETURNING *",
+        [auctionId]
+      );
+      auction = activateResult.rows[0] ?? auction;
+    }
 
     if (auction.status !== 'live') {
       await client.query('ROLLBACK');
       res.status(400).json({ error: 'Auction is not live' });
-      return;
-    }
-
-    if (now < startsAt) {
-      await client.query('ROLLBACK');
-      res.status(400).json({ error: 'Auction has not started yet' });
-      return;
-    }
-
-    if (now >= endsAt) {
-      await client.query("UPDATE live_auctions SET status = 'closed' WHERE id = $1", [auctionId]);
-      await client.query('COMMIT');
-      res.status(400).json({ error: 'Auction has ended' });
       return;
     }
 
