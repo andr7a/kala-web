@@ -31,6 +31,81 @@ const pool = DATABASE_URL
 
 const AUCTION_MIN_INCREMENT = 100;
 const AUCTION_BID_EXTENSION_SECONDS = 10;
+const AUCTION_SCHEMA_SQL = `
+  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+  CREATE TABLE IF NOT EXISTS live_auctions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    lot_number text NOT NULL,
+    seller_user_id uuid,
+    status text NOT NULL DEFAULT 'live' CHECK (status IN ('scheduled', 'live', 'closed', 'cancelled')),
+    starts_at timestamptz NOT NULL DEFAULT now(),
+    ends_at timestamptz NOT NULL DEFAULT (now() + interval '10 seconds'),
+    starting_bid numeric(12,2) NOT NULL CHECK (starting_bid >= 0),
+    current_bid numeric(12,2) NOT NULL CHECK (current_bid >= starting_bid),
+    min_increment numeric(12,2) NOT NULL DEFAULT 100 CHECK (min_increment = 100),
+    current_bidder_name text,
+    current_bidder_user_id uuid,
+    current_bid_at timestamptz,
+    total_bids integer NOT NULL DEFAULT 0 CHECK (total_bids >= 0),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  );
+
+  CREATE TABLE IF NOT EXISTS auction_bids (
+    id bigserial PRIMARY KEY,
+    auction_id uuid NOT NULL REFERENCES live_auctions(id) ON DELETE CASCADE,
+    bidder_name text NOT NULL CHECK (char_length(trim(bidder_name)) > 0),
+    bidder_user_id uuid,
+    amount numeric(12,2) NOT NULL CHECK (amount > 0),
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_live_auctions_status_ends_at
+    ON live_auctions(status, ends_at DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_live_auctions_lot
+    ON live_auctions(lot_number);
+
+  CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_created_at
+    ON auction_bids(auction_id, created_at DESC);
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_live_auctions_single_open_lot
+    ON live_auctions(lot_number)
+    WHERE status IN ('scheduled', 'live');
+
+  CREATE OR REPLACE FUNCTION set_live_auctions_updated_at()
+  RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    NEW.updated_at := now();
+    RETURN NEW;
+  END;
+  $$;
+
+  DROP TRIGGER IF EXISTS trg_live_auctions_updated_at ON live_auctions;
+  CREATE TRIGGER trg_live_auctions_updated_at
+  BEFORE UPDATE ON live_auctions
+  FOR EACH ROW
+  EXECUTE FUNCTION set_live_auctions_updated_at();
+`;
+
+let auctionSchemaInitPromise = null;
+
+async function ensureAuctionSchema() {
+  if (!pool) throw new Error('DATABASE_URL not configured');
+  if (!auctionSchemaInitPromise) {
+    auctionSchemaInitPromise = (async () => {
+      await pool.query(AUCTION_SCHEMA_SQL);
+      return true;
+    })().catch((error) => {
+      auctionSchemaInitPromise = null;
+      throw error;
+    });
+  }
+  await auctionSchemaInitPromise;
+}
 
 function clampInt(value, min, max, fallback) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -335,6 +410,8 @@ app.get('/api/auctions', async (req, res) => {
   `;
 
   try {
+    await ensureAuctionSchema();
+
     await pool.query(
       "UPDATE live_auctions SET status = 'closed' WHERE status = 'live' AND ends_at <= now()"
     );
@@ -343,7 +420,7 @@ app.get('/api/auctions', async (req, res) => {
     res.json({ items: result.rows.map((row) => parseAuctionRow(row)) });
   } catch (error) {
     console.error('API /api/auctions error', error);
-    res.status(500).json({ error: 'Query failed' });
+    res.status(500).json({ error: 'Query failed', details: error?.message || 'Unknown database error' });
   }
 });
 
@@ -369,11 +446,12 @@ app.get('/api/auctions/:id/bids', async (req, res) => {
   `;
 
   try {
+    await ensureAuctionSchema();
     const result = await pool.query(sql, [auctionId, limit]);
     res.json({ items: result.rows.map((row) => parseAuctionBidRow(row)) });
   } catch (error) {
     console.error('API /api/auctions/:id/bids error', error);
-    res.status(500).json({ error: 'Query failed' });
+    res.status(500).json({ error: 'Query failed', details: error?.message || 'Unknown database error' });
   }
 });
 
@@ -421,6 +499,7 @@ app.post('/api/auctions', async (req, res) => {
   `;
 
   try {
+    await ensureAuctionSchema();
     const result = await pool.query(sql, [
       lotNumber,
       sellerUserId,
@@ -435,7 +514,7 @@ app.post('/api/auctions', async (req, res) => {
       return;
     }
     console.error('API /api/auctions (POST) error', error);
-    res.status(500).json({ error: 'Could not create auction' });
+    res.status(500).json({ error: 'Could not create auction', details: error?.message || 'Unknown database error' });
   }
 });
 
@@ -460,6 +539,7 @@ app.post('/api/auctions/:id/close', async (req, res) => {
   `;
 
   try {
+    await ensureAuctionSchema();
     const result = await pool.query(sql, [auctionId]);
     if (result.rows.length === 0) {
       res.status(404).json({ error: 'Auction not found or already closed' });
@@ -468,7 +548,7 @@ app.post('/api/auctions/:id/close', async (req, res) => {
     res.json({ ok: true, auction: parseAuctionRow(result.rows[0]) });
   } catch (error) {
     console.error('API /api/auctions/:id/close error', error);
-    res.status(500).json({ error: 'Could not close auction' });
+    res.status(500).json({ error: 'Could not close auction', details: error?.message || 'Unknown database error' });
   }
 });
 
@@ -494,6 +574,8 @@ app.post('/api/auctions/:id/bid', async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await ensureAuctionSchema();
+
     await client.query('BEGIN');
 
     const lockResult = await client.query(
@@ -592,7 +674,7 @@ app.post('/api/auctions/:id/bid', async (req, res) => {
       await client.query('ROLLBACK');
     } catch {}
     console.error('API /api/auctions/:id/bid error', error);
-    res.status(500).json({ error: 'Could not place bid' });
+    res.status(500).json({ error: 'Could not place bid', details: error?.message || 'Unknown database error' });
   } finally {
     client.release();
   }
